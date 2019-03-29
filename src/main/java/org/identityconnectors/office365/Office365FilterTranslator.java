@@ -94,7 +94,6 @@ public class Office365FilterTranslator extends AbstractFilterTranslator<String> 
             return null;
         }
 
-        String name = attr.getName();
         String value = AttributeUtil.getAsStringValue(attr);
 
         if (validateSearchValue(value) == null) {

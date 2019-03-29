@@ -54,7 +54,7 @@ public class Office365Configuration extends AbstractConfiguration {
     private String acsPrincipalID = "00000001-0000-0000-c000-000000000000";
     private String immutableIDEncodeMechanism = ENCODE_STRAIGHT_BASE64_STR;
     private String ignoredPlanNames = null;
-
+    private Integer cacheRefreshInterval = 5;
 
     /**
      * Constructor
@@ -202,5 +202,14 @@ public class Office365Configuration extends AbstractConfiguration {
             throw new IllegalArgumentException("ACS Principal ID cannot be null or empty.");
         }
     }
+
+    @ConfigurationProperty(order = 10, displayMessageKey = "cacheRefreshInterval.display", confidential = false)
+	public Integer getCacheRefreshInterval() {
+		return cacheRefreshInterval;
+	}
+
+	public void setCacheRefreshInterval(Integer cacheRefreshInterval) {
+		this.cacheRefreshInterval = cacheRefreshInterval;
+	}
 
 }

@@ -58,10 +58,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-
 /**
  * Class to represent a Office365 Connection
  *
@@ -76,18 +72,13 @@ public class Office365Connection {
     public static final String API_VERSION = "2013-11-08";
     public static final Uid SUCCESS_UID = new Uid("fffffff-ffff-ffff-ffff-ffffffffffff");
     private Pattern directoryObjectGUIDPattern = Pattern.compile(".*directoryObjects/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/.*");
-    private Map<String, String> licensesBySkuId = new HashMap<>(); // Hashmap of servicePlanName, servicePlanId
-    private HashMap<String, String> servicePlanIDs = null; // Hashmap of servicePlanName, servicePlanId
-    private HashMap<String, Office365License> licenses = null; // partNumber, O365License Can you have more than one of the same plan? 
-    private HashMap<String, Office365Domain> verifiedDomains = null;
+    private static Map<String, String> licensesBySkuId = new HashMap<>();		// Hashmap of license sku -> license name
+    private static Map<String, String> servicePlanIDs = new HashMap<>(); 		// Hashmap of servicePlanName -> servicePlanId
+    private static Map<String, Office365License> licenses = new HashMap<>(); 	// Hashmap of license name --> license object 
     
-    static LoadingCache<String, Office365License> licensesCache = CacheBuilder.newBuilder().build(
-    		new CacheLoader<String, Office365License>() {
-    			public Office365License load(String licenseName) {
-    				return new Office365License("pepe2");
-    			}
-    		}
-    );
+    private static long lastRefreshTimestamp = 0;
+    
+    private Map<String, Office365Domain> verifiedDomains = null;
     
     public static Office365Connection createConnection(Office365Configuration configuration) {
         String token = createToken(configuration);
@@ -394,12 +385,12 @@ public class Office365Connection {
     }
 
     public String getServicePlanId(String planName) {
-        if ((this.servicePlanIDs == null) || (this.servicePlanIDs.size() == 0)) {
-            populateSKUs();
+        if (shouldReloadCache(this.configuration.getCacheRefreshInterval())) {
+        	populateCache(this);
         }
 
-        if (this.servicePlanIDs != null) {
-            return this.servicePlanIDs.get(planName);
+        if (servicePlanIDs != null) {
+            return servicePlanIDs.get(planName);
         } else {
             return null;
         }
@@ -416,27 +407,39 @@ public class Office365Connection {
     }
 
     public Office365License getLicensePlan(String licenseName) {
-        if (this.licenses == null || this.licenses.size() == 0) {
-            populateSKUs();
+        if (shouldReloadCache(this.configuration.getCacheRefreshInterval())) {
+        	populateCache(this);
         }
 
-        return this.licenses.get(licenseName);
+        return licenses.get(licenseName);
     }
     
     public Office365License getLicensePlanBySku(String licenseSku) {
-        if (this.licenses == null || this.licenses.size() == 0) {
-            populateSKUs();
+        if (shouldReloadCache(this.configuration.getCacheRefreshInterval())) {
+            populateCache(this);
         }
-        String licenseName = this.licensesBySkuId.get(licenseSku);
+        String licenseName = licensesBySkuId.get(licenseSku);
         return this.getLicensePlan(licenseName);
     }
 
-    private void populateSKUs() {
-        log.info("populateSKUs");
-        this.licenses = new HashMap<String, Office365License>();
-        this.servicePlanIDs = new HashMap<String, String>();
-
-        JSONObject obj = getRequest("/subscribedSkus?api-version=" + Office365Connection.API_VERSION);
+    private static boolean shouldReloadCache(long intervalInMinutes) {
+    	log.info("shouldReloadCache -> current: {0} / last: {1} / interval: {2}" , System.currentTimeMillis(), lastRefreshTimestamp, intervalInMinutes);
+    	if (System.currentTimeMillis() - lastRefreshTimestamp > (intervalInMinutes * 60 * 1000)) {
+    		return true;
+    	}
+    	if (licenses == null || licenses.size() == 0) {
+    		return true;
+    	}
+    	if (servicePlanIDs == null || servicePlanIDs.size() == 0) {
+    		return true;
+    	}
+    	return false;
+    }
+    
+    
+    private synchronized static void populateCache(Office365Connection connection) {
+        log.info("populate cache");
+        JSONObject obj = connection.getRequest("/subscribedSkus?api-version=" + Office365Connection.API_VERSION);
         try {
             JSONArray skus = obj.getJSONArray("value");
             for (int i = 0; i < skus.length(); i++) {
@@ -445,7 +448,7 @@ public class Office365Connection {
                 String skuID = sku.getString("skuId");
                 String skuPartNumber = sku.getString("skuPartNumber");
                 
-                this.licensesBySkuId.put(skuID, skuPartNumber);
+                licensesBySkuId.put(skuID, skuPartNumber);
 
                 Office365License license = new Office365License(skuID);
                 license.setSkuPartNumber(skuPartNumber);
@@ -465,14 +468,15 @@ public class Office365Connection {
                     Office365ServicePlan plan = new Office365ServicePlan(planID, planName);
                     license.addServicePlan(plan);
 
-                    this.servicePlanIDs.put(planName, planID);
+                    servicePlanIDs.put(planName, planID);
                 }
 
-                this.licenses.put(skuPartNumber, license);
+                licenses.put(skuPartNumber, license);
             }
         } catch (JSONException je) {
             log.error(je, "Error populating skus");
         }
+        lastRefreshTimestamp = System.currentTimeMillis();
     }
 
     public Office365Domain getDomain(String name) {

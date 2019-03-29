@@ -20,6 +20,7 @@ import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
@@ -27,12 +28,7 @@ import java.util.TimeZone;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-
-import javax.xml.bind.DatatypeConverter;
-
 import org.json.JSONObject;
-
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 /**
  * Facilitates minting a test token.
@@ -125,11 +121,11 @@ public class JWTTokenHelper {
 			String signingKey) throws Exception {
 		
 		TokenHeader tokenHeaderContract = new TokenHeader("HS256", "");
-		String tokenHeader =  com.sun.org.apache.xerces.internal.impl.dv.util.Base64.encode(tokenHeaderContract.encodeToJson().getBytes());				
-		String tokenBody = com.sun.org.apache.xerces.internal.impl.dv.util.Base64.encode(webToken.encodeToJson().getBytes());
+		String tokenHeader =  Base64.getEncoder().encodeToString(tokenHeaderContract.encodeToJson().getBytes());				
+		String tokenBody = Base64.getEncoder().encodeToString(webToken.encodeToJson().getBytes());
 		
 		String rawToken = String.format("%s.%s", tokenHeader, tokenBody);		
-		String signature = Base64.encode(JWTTokenHelper.signData(signingKey, rawToken));				
+		String signature = Base64.getEncoder().encodeToString(JWTTokenHelper.signData(signingKey, rawToken));				
 		String accessToken = String.format("%s.%s", rawToken, signature);		
 		return accessToken;
 	}
@@ -145,7 +141,7 @@ public class JWTTokenHelper {
 	private static byte[] signData(String signingKey, String rawToken) throws Exception {
 		SecretKeySpec secretKey = null;
 
-		secretKey = new SecretKeySpec(com.sun.org.apache.xerces.internal.impl.dv.util.Base64.decode(signingKey), "HmacSHA256");
+		secretKey = new SecretKeySpec(Base64.getDecoder().decode(signingKey), "HmacSHA256");
 
 		Mac mac;
 		byte[] signedData = null;
