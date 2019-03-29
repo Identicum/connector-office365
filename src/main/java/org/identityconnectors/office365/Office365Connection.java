@@ -30,6 +30,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.http.Header;
@@ -57,6 +58,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 /**
  * Class to represent a Office365 Connection
  *
@@ -71,10 +76,19 @@ public class Office365Connection {
     public static final String API_VERSION = "2013-11-08";
     public static final Uid SUCCESS_UID = new Uid("fffffff-ffff-ffff-ffff-ffffffffffff");
     private Pattern directoryObjectGUIDPattern = Pattern.compile(".*directoryObjects/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/.*");
+    private Map<String, String> licensesBySkuId = new HashMap<>(); // Hashmap of servicePlanName, servicePlanId
     private HashMap<String, String> servicePlanIDs = null; // Hashmap of servicePlanName, servicePlanId
     private HashMap<String, Office365License> licenses = null; // partNumber, O365License Can you have more than one of the same plan? 
     private HashMap<String, Office365Domain> verifiedDomains = null;
-
+    
+    static LoadingCache<String, Office365License> licensesCache = CacheBuilder.newBuilder().build(
+    		new CacheLoader<String, Office365License>() {
+    			public Office365License load(String licenseName) {
+    				return new Office365License("pepe2");
+    			}
+    		}
+    );
+    
     public static Office365Connection createConnection(Office365Configuration configuration) {
         String token = createToken(configuration);
         return new Office365Connection(configuration, token);
@@ -114,7 +128,7 @@ public class Office365Connection {
                 String token = JWTTokenHelper.getOAuthAccessTokenFromACS(configuration.getAuthURL(), assertion, resource);
                 return token;
             } catch (Exception e) {
-                log.error("Error creating token, error {0}", e);
+                log.error("Error creating token, error {0}", e, e);
             }
         } catch (URISyntaxException use) {
             log.error("Error connecting to authetication server {0} error is {1}", configuration.getAuthURL(), use);
@@ -408,6 +422,14 @@ public class Office365Connection {
 
         return this.licenses.get(licenseName);
     }
+    
+    public Office365License getLicensePlanBySku(String licenseSku) {
+        if (this.licenses == null || this.licenses.size() == 0) {
+            populateSKUs();
+        }
+        String licenseName = this.licensesBySkuId.get(licenseSku);
+        return this.getLicensePlan(licenseName);
+    }
 
     private void populateSKUs() {
         log.info("populateSKUs");
@@ -422,6 +444,8 @@ public class Office365Connection {
 
                 String skuID = sku.getString("skuId");
                 String skuPartNumber = sku.getString("skuPartNumber");
+                
+                this.licensesBySkuId.put(skuID, skuPartNumber);
 
                 Office365License license = new Office365License(skuID);
                 license.setSkuPartNumber(skuPartNumber);
@@ -547,6 +571,15 @@ public class Office365Connection {
         }
     }
 
+    public void licenseAssignmentRequest(Uid uid, JSONObject request) {
+    	log.info("Request to assignLicense endpoint for user {0} with body {1}", uid.getUidValue(), request );
+    	Uid returnedUid = this.postRequest("/users/" + uid.getUidValue() + "/assignLicense?api-version=" + Office365Connection.API_VERSION, request);
+    	if (returnedUid == null || !returnedUid.equals(Office365Connection.SUCCESS_UID)) {
+    		log.info("License assignment failed. Returned uid: {0}", returnedUid.getUidValue());
+    		throw new ConnectorException("Error calling assignLicense endpoint: " + returnedUid.getUidValue());
+    	}
+    }
+    
     /**
      * Release internal resources
      */

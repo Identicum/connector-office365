@@ -53,6 +53,7 @@ public class Office365Configuration extends AbstractConfiguration {
     private String resourceID = "00000002-0000-0000-c000-000000000000";
     private String acsPrincipalID = "00000001-0000-0000-c000-000000000000";
     private String immutableIDEncodeMechanism = ENCODE_STRAIGHT_BASE64_STR;
+    private String ignoredPlanNames = null;
 
 
     /**
@@ -155,6 +156,16 @@ public class Office365Configuration extends AbstractConfiguration {
         this.immutableIDEncodeMechanism = immutableIDEncodeMechanism;
     }
     
+    @ConfigurationProperty(order = 9, displayMessageKey = "ignoredPlanNames.display",
+            groupMessageKey ="basic.group", helpMessageKey = "ignoredPlanNames.help",
+            confidential = false)
+	public String getIgnoredPlanNames() {
+		return ignoredPlanNames;
+	}
+
+	public void setIgnoredPlanNames(String ignoredPlanNames) {
+		this.ignoredPlanNames = ignoredPlanNames;
+	}
     /**
      * {@inheritDoc}
      */

@@ -24,7 +24,10 @@
 package org.identityconnectors.office365;
 
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.identityconnectors.common.logging.Log;
 import org.identityconnectors.common.security.GuardedString;
@@ -52,6 +55,7 @@ import org.identityconnectors.framework.spi.operations.DeleteOp;
 import org.identityconnectors.framework.spi.operations.SchemaOp;
 import org.identityconnectors.framework.spi.operations.SearchOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
+import org.identityconnectors.framework.spi.operations.UpdateAttributeValuesOp;
 import org.identityconnectors.framework.spi.operations.UpdateOp;
 
 /**
@@ -68,7 +72,8 @@ public class Office365Connector implements
         SearchOp<String>,
         TestOp,
         UpdateOp,
-        SchemaOp
+        SchemaOp,
+        UpdateAttributeValuesOp
     {
 
     public static final String LICENSE_ATTR = "licenses";
@@ -99,7 +104,7 @@ public class Office365Connector implements
     /**
      * Gets the Configuration context for this connector.
      */
-    public Configuration getConfiguration() {
+    public Office365Configuration getConfiguration() {
         return this.configuration;
     }
 
@@ -260,7 +265,7 @@ public class Office365Connector implements
         objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build("givenName", String.class));
         objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build("jobTitle", String.class));
         // license format   licensename:planname:planname:...
-        objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build(LICENSE_ATTR, String.class));
+        objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build(LICENSE_ATTR, String.class, EnumSet.of(Flags.MULTIVALUED)));
         objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build("mail", String.class));
         objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build("mailNickname", String.class, EnumSet.of(Flags.REQUIRED)));
         objectClassInfoBuilderUser.addAttributeInfo(AttributeInfoBuilder.build("mobile", String.class));
@@ -341,4 +346,36 @@ public class Office365Connector implements
     	
     	return this.connection;
     }
+
+	@Override
+	public Uid addAttributeValues(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
+		log.info("Entering addValue with objectClass: {0}", objectClass.toString());
+		for(Attribute attribute : attributes) {
+			log.info("AddAttributeValue - {0}: {1}", attribute.getName(), attribute.getValue());
+			if( attribute.getName().equals(LICENSE_ATTR)) {	
+				List<String> licenses2add = attribute.getValue().stream()
+							.map(object -> Objects.toString(object, null))
+							.collect(Collectors.toList());
+				log.info("Assigning licenses {0} to user {1}", licenses2add, uid.getUidValue());
+				this.userOps.assignLicenses(uid, licenses2add);
+			}
+		}	
+		return uid;
+	}
+
+	@Override
+	public Uid removeAttributeValues(ObjectClass objectClass, Uid uid, Set<Attribute> attributes, OperationOptions operationOptions) {
+		log.info("Entering removeValue with objectClass: {0}", objectClass.toString());
+		for(Attribute attribute : attributes) {
+			log.info("RemoveAttributeValue - {0}: {1}", attribute.getName(), attribute.getValue());
+			if( attribute.getName().equals(LICENSE_ATTR)) {	
+				List<String> licenses2remove = attribute.getValue().stream()
+							.map(object -> Objects.toString(object, null))
+							.collect(Collectors.toList());
+				log.info("Removing licenses {0} from user {1}", licenses2remove, uid.getUidValue());
+				this.userOps.revokeLicenses(uid, licenses2remove);
+			}
+		}	
+		return uid;
+	}
 }

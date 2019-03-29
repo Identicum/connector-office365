@@ -84,6 +84,25 @@ public class Office365ConnectorTests {
     //set up logging
     private static final Log LOGGER = Log.getLog(Office365ConnectorTests.class);
 
+    
+    public static void main(String args[]) {
+    	
+    	Office365Configuration o365 = new Office365Configuration();
+    	
+    	o365.setApiEndPoint(APIENDPOINT);
+    	o365.setTenancy(TENANCY);
+    	o365.setSymetricKey(SYMETRICKEY);
+    	o365.setAuthURL(AUTHURL);
+    	o365.setPrincipalID(PRINCIPALID);
+    	o365.setResourceID(RESOURCEID);
+    	o365.setAcsPrincipalID(ACSPRINCIPALID);
+    	o365.setImmutableIDEncodeMechanism(IMMUTABLEID_ENCODE);
+        
+        String token = Office365Connection.createToken(o365);
+        System.out.println("Token: "+ token);
+    	
+    }
+    
     @BeforeClass
     public static void setUp() {
         Assert.assertNotNull(APIENDPOINT);
@@ -116,6 +135,7 @@ public class Office365ConnectorTests {
         Office365Configuration config = getConfiguration();
        
         String token = Office365Connection.createToken(config);
+        System.out.println("Token: "+ token);
         Assert.assertNotNull(token);
     }
     

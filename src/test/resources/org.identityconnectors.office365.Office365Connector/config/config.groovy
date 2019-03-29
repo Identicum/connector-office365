@@ -38,13 +38,13 @@ connector.i3.wrong.password=new GuardedString("".toCharArray())
 
 configuration{
     apiEndPoint = "graph.windows.net"
-    tenancy = "proofiducisa14.onmicrosoft.com"
-    symetricKey = new GuardedString("H/niwGAtKW6R+5hevoCnQTn6JsLGVEVAJGmw1pig+9Y=".toCharArray())
+    tenancy = "identicum.onmicrosoft.com"
+    symetricKey = new GuardedString("apKtyueJGEtBB+sNQFjtTkGnpx03JhkBF2/U8/avIuw=".toCharArray())
     authUrl = "https://accounts.accesscontrol.windows.net/tokens/OAuth/2"
-    principalID = "33be068f-eaa4-4cb3-925e-8ea35b9799fa"
+    principalID = "8537e9f6-85c8-40d6-a9cd-79326b23407c"
     resourceID = "00000002-0000-0000-c000-000000000000";
     acsPrincipalID = "00000001-0000-0000-c000-000000000000";
-    immutableIDEncodeMechanism = "ms-base64";
+    immutableIDEncodeMechanism = "straight-base64";
 }
 
 testsuite {
